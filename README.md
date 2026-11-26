@@ -75,7 +75,11 @@ Record received income and expenses with a date, category/source, payment method
 
 For example, a November bill partly paid in November and completed in December contributes the respective payments to each cash month. Historical month-end views retain what was unpaid at that time. Editing a tracked bill cannot discard its payment history or reduce its total below recorded payments. Payment history supports confirmed undo; a request identity makes retries safe.
 
-The full Transactions page displays all matching monthly records. Desktop users can choose page scrolling or a saved internal table-scroll preference. Mobile uses page-scrolling cards. The overview shows a short recent-record preview. Search and status/category filters do not change whole-month totals or the scope of a monthly PDF.
+The overview includes **Spent today**, calculated using the Pakistan calendar day and actual payment dates. Its button opens today’s expenses. Expected bills and salary-advance credits are excluded from daily spending; actual installments count only on their payment date.
+
+The full Transactions page defaults to **All time** and shows every matching record. Date filters offer Today, last 7/30 days, a selected month, or inclusive custom dates. Search, type, status and category filters update both the list and its totals. Quick categories include Child expenses, Personal care, and an explicitly combined Bike & fuel filter (Fuel + Bike maintenance). Use Clear filters to return to all records. Scheduled bills can appear by planned date or a payment in the selected period; spending totals use actual payments through today, while unpaid amounts stay separate. Invalid date ranges show an error instead of stale totals.
+
+Desktop users can choose page scrolling or a saved internal table-scroll preference. Mobile uses page-scrolling cards. The overview retains its five-entry monthly preview; its monthly charts and the scope of monthly PDFs are independent of the transaction filters.
 
 ### Udhar given and taken
 

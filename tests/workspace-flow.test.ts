@@ -22,7 +22,11 @@ test('workspace connects partial payments, expected receipts, recurrence, remind
  let mounted=render(React.createElement(Workspace,props));
  const nav=async(name:string)=>user.click(within(screen.getByRole('navigation',{name:'Workspace navigation'})).getByRole('button',{name,exact:true}));
  try{
- await waitFor(()=>assert.equal(mounted.container.querySelector('.tl-total-income>strong')?.textContent,'Rs 100,000'));await nav('Transactions');
+ await waitFor(()=>assert.equal(mounted.container.querySelector('.tl-total-income>strong')?.textContent,'Rs 100,000'));
+ const pkDay=require('../lib/transaction-filters').pakistanToday();
+ const daily=within(screen.getByRole('region',{name:"Today's spending"}));assert.ok(daily.getByText(pkDay===current?'Rs 2,500':'Rs 0',{exact:true}));
+ await user.click(daily.getByRole('button',{name:"View today's expenses",exact:true}));assert.equal((screen.getByLabelText('Transaction date range') as HTMLSelectElement).value,'today');assert.equal(mounted.container.querySelector('.tl-total-income>strong')?.textContent,'Rs 0');
+ await user.click(screen.getByRole('button',{name:'Clear filters',exact:true}));assert.equal((screen.getByLabelText('Transaction date range') as HTMLSelectElement).value,'all');await nav('Transactions');
  assert.equal(mounted.container.querySelectorAll('.tl-table tbody tr').length,27);assert.equal(screen.queryByRole('button',{name:'Next transactions page'}),null);
  const school=()=>Array.from(mounted.container.querySelectorAll('.tl-row')).find((el:any)=>el.textContent.includes('QA School fee')) as HTMLElement;
  await user.click(within(school()).getByRole('button',{name:'Mark as paid',exact:true}));let d=within(screen.getByRole('dialog'));
@@ -55,5 +59,11 @@ test('workspace connects partial payments, expected receipts, recurrence, remind
  await nav('Data & recovery');const deleted=within(screen.getByRole('heading',{name:'Deleted records',exact:true}).closest('section'));await user.click(deleted.getByRole('button',{name:'Restore',exact:true}));d=within(screen.getByRole('dialog'));await user.click(d.getByRole('button',{name:'Restore record',exact:true}));await waitFor(()=>assert.equal(screen.queryByRole('dialog'),null));await waitFor(()=>assert.equal(ledger().entries.length,beforeQuick+1));assert.equal(ledger().entries.at(-1).id,quickEntry.id);
  // The core navigation and document direction are switchable without changing stored financial data.
  await user.selectOptions(screen.getByLabelText('Workspace language'),'ur');assert.equal(mounted.container.querySelector('.hisabivo-locale')?.getAttribute('dir'),'rtl');assert.ok(screen.getByRole('button',{name:'آمدن اور اخراجات',exact:true}));await user.selectOptions(screen.getByLabelText('ورک اسپیس کی زبان'),'en');
+ // Full Transactions defaults to all time and category totals include older months.
+ cleanup();const olderMonth=require('../lib/ledger').shiftMonth(current.slice(0,7),-2),olderDate=olderMonth+'-15';const saved=ledger();saved.entries.push({...base,id:'older-bike',type:'expense',description:'Bike service from an older month',category:'Bike maintenance',date:olderDate,paid_date:olderDate,expense_status:'paid',amount_paisa:100000});w.localStorage.setItem('hisabivo.demo.ledger.v1',JSON.stringify(saved));
+ mounted=render(React.createElement(Workspace,{...props,initialView:'transactions'}));await waitFor(()=>assert.ok(mounted.container.querySelector('.tl-table')?.textContent?.includes('Bike service from an older month')));assert.equal((screen.getByLabelText('Transaction date range') as HTMLSelectElement).value,'all');
+ await user.click(within(screen.getByRole('group',{name:'Quick expense categories'})).getByRole('button',{name:'Bike & fuel',exact:true}));assert.equal(mounted.container.querySelector('.tl-total-expense>strong')?.textContent,'Rs 2,500');assert.equal(mounted.container.querySelectorAll('.tl-table tbody tr').length,2);
+ await user.selectOptions(screen.getByLabelText('Transaction date range'),'custom');fireEvent.change(screen.getByLabelText('Start date',{exact:true}),{target:{value:olderDate}});fireEvent.change(screen.getByLabelText('End date',{exact:true}),{target:{value:olderDate}});assert.equal(mounted.container.querySelector('.tl-total-expense>strong')?.textContent,'Rs 1,000');assert.equal(mounted.container.querySelectorAll('.tl-table tbody tr').length,1);
+ fireEvent.change(screen.getByLabelText('End date',{exact:true}),{target:{value:require('../lib/planning').addDays(olderDate,-1)}});assert.ok(screen.getByRole('alert').textContent.includes('end date'));assert.equal(mounted.container.querySelector('.tl-total-expense>strong')?.textContent,'Rs 0');await user.click(screen.getByRole('button',{name:'Clear filters',exact:true}));assert.equal((screen.getByLabelText('Transaction date range') as HTMLSelectElement).value,'all');assert.ok(mounted.container.querySelectorAll('.tl-table tbody tr').length>2);
  }finally{cleanup();dom.window.close();}
 });
