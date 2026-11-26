@@ -25,11 +25,43 @@ export function createMonthlyPdf(entries: Transaction[], month: string, owner: s
   const doc = new jsPDF();
   if (fonts) embedFont(doc, fonts.regular, fonts.bold);
   const font = fonts ? PDF_FONT_FAMILY : "helvetica";
-  function write(value: string | string[], x: number, y: number, options: TextOptionsLight = {}) {
-    doc.setFont(font, "normal"); doc.setR2L(false);
+  function write(value: string | string[], x: number, y: number, options: TextOptionsLight = {}, bold = false) {
+    doc.setFont(font, bold ? "bold" : "normal"); doc.setR2L(false);
     const joined = Array.isArray(value) ? value.join("\n") : value;
     const shaped = Array.isArray(value) ? value.map(line => shapePdfText(doc, line)) : shapePdfText(doc, value);
     doc.text(shaped, x, y, { ...pdfTextOptions(joined), ...options });
+  }
+  function fitFontSize(text: string, maxWidth: number, start: number, min = 8) {
+    let size = start;
+    doc.setFontSize(size);
+    while (size > min && doc.getTextWidth(text) > maxWidth) { size -= 0.5; doc.setFontSize(size); }
+    return size;
+  }
+  function statCard(x: number, y: number, w: number, h: number, label: string, value: string, caption: string, accent: [number, number, number], tint: [number, number, number]) {
+    doc.setFillColor(...tint); doc.roundedRect(x, y, w, h, 2.2, 2.2, "F");
+    doc.setFillColor(...accent); doc.roundedRect(x, y, 1.6, h, 0.8, 0.8, "F");
+    doc.setTextColor(125, 135, 126); doc.setFontSize(8);
+    write(label.toUpperCase(), x + 6, y + 8);
+    doc.setFont(font, "bold"); fitFontSize(value, w - 11, 16.5, 9.5);
+    doc.setTextColor(...accent);
+    write(value, x + 6, y + 19, {}, true);
+    if (caption) { doc.setFontSize(7.3); doc.setTextColor(150, 158, 148); write(doc.splitTextToSize(caption, w - 11)[0] || "", x + 6, y + h - 5); }
+    doc.setTextColor(40, 50, 46); doc.setFontSize(9);
+  }
+  function statStrip(x: number, y: number, w: number, items: { label: string; value: string }[], accent: [number, number, number], tint: [number, number, number]) {
+    const h = 18;
+    doc.setFillColor(...tint); doc.roundedRect(x, y, w, h, 2, 2, "F");
+    const colW = w / items.length;
+    items.forEach((item, i) => {
+      const cx = x + colW * i + 7;
+      if (i > 0) { doc.setDrawColor(222, 230, 217); doc.line(x + colW * i, y + 3, x + colW * i, y + h - 3); }
+      doc.setTextColor(125, 135, 126); doc.setFontSize(7.6);
+      write(item.label, cx, y + 7);
+      doc.setFont(font, "bold"); fitFontSize(item.value, colW - 12, 12, 8.5);
+      doc.setTextColor(...accent);
+      write(item.value, cx, y + 14.5, {}, true);
+    });
+    doc.setTextColor(40, 50, 46); doc.setFontSize(9);
   }
   function table(options: UserOptions) {
     autoTable(doc, { ...options, styles: { ...options.styles, font }, headStyles: { ...options.headStyles, font, fontStyle: "bold" },
@@ -45,45 +77,64 @@ export function createMonthlyPdf(entries: Transaction[], month: string, owner: s
     }); doc.setR2L(false); doc.setFont(font, "normal");
   }
   const green: [number, number, number] = [24, 88, 68];
+  const incomeColor: [number, number, number] = [34, 108, 78];
+  const incomeTint: [number, number, number] = [233, 245, 235];
+  const expenseColor: [number, number, number] = [168, 104, 76];
+  const expenseTint: [number, number, number] = [252, 240, 233];
+  const netColor: [number, number, number] = summary.net >= 0 ? [60, 93, 46] : [168, 90, 60];
+  const netTint: [number, number, number] = summary.net >= 0 ? [234, 243, 227] : [252, 236, 230];
+  const neutralColor: [number, number, number] = [60, 78, 66];
+  const neutralTint: [number, number, number] = [245, 247, 243];
   doc.setFillColor(...green);
-  doc.rect(0, 0, 210, 46, "F");
+  doc.rect(0, 0, 210, 38, "F");
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(24);
-  write("Hisabivo", 16, 21);
-  doc.setFontSize(12);
-  write(`Monthly statement | ${monthLabel(month)}`, 16, 33);
+  doc.setFontSize(23);
+  write("Hisabivo", 16, 19, {}, true);
+  doc.setFontSize(11);
+  write(`Monthly statement  |  ${monthLabel(month)}`, 16, 29);
+  doc.setTextColor(110, 120, 115);
+  doc.setFontSize(8.5);
+  const metaLines = doc.splitTextToSize(demo ? `DEMO REPORT - browser data, may include sample entries  |  PKR  |  Generated ${new Date().toLocaleString("en-GB")}` : `Account: ${owner}  |  PKR  |  Generated ${new Date().toLocaleString("en-GB")}`, 178);
+  write(metaLines, 16, 47);
+  let noteY = 47 + metaLines.length * 4.2 + 4;
+  const captionBits = [udhar ? "Udhar affects cash balances only, not income or expense totals." : "Income and expense records only - Udhar is not included."];
+  if (pending.length) captionBits.push("Expected expenses are listed separately on their own page.");
+  doc.setFontSize(7.8);
+  doc.setTextColor(145, 155, 143);
+  const captionLines = doc.splitTextToSize(captionBits.join("   .   "), 178);
+  write(captionLines, 16, noteY);
   doc.setTextColor(40, 50, 46);
-  doc.setFontSize(10);
-  const accountLines = doc.splitTextToSize(demo ? "DEMO REPORT - browser data, may include sample entries" : `Account: ${owner}`, 178);
-  write(accountLines, 16, 57);
-  const metadataY = 57 + accountLines.length * 5;
-  write(`Currency: PKR | Generated: ${new Date().toLocaleString("en-GB")}`, 16, metadataY + 2);
-  doc.setFontSize(8);
-  write(udhar ? "Udhar principal and repayments affect cash balances, not income or expense totals." : "Income and expense records only. Udhar is not included in these balances.", 16, metadataY + 9);
-  if (pending.length) write("Expected expenses are listed separately and do not reduce spending totals or cash balances.", 16, metadataY + 14);
-  table({
-    startY: metadataY + (pending.length ? 21 : 15),
-    head: [[udhar || accountReport ? "Opening recorded cash" : "Opening income/expense balance", "Income received", "Expenses paid", "Income less paid expenses", udhar || accountReport ? "Closing recorded cash" : "Closing income/expense balance"]],
-    body: [[summary.opening, summary.income, summary.expense, summary.net, summary.closing].map(v => money(v, true))],
-    theme: "grid", headStyles: { fillColor: green }, styles: { fontSize: 9 }, margin: { left: 16, right: 16, bottom: 20 },
-  });
-  let y = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 14;
+
+  const cardY = noteY + captionLines.length * 3.8 + 7;
+  const cardGap = 6, cardW = (178 - cardGap * 2) / 3, cardH = 30;
+  const incomeCount = summary.cashRows.filter(e => e.type === "income").length;
+  const expenseCount = summary.cashRows.filter(e => e.type === "expense").length;
+  statCard(16, cardY, cardW, cardH, "Income received", money(summary.income, true), `${incomeCount} ${incomeCount === 1 ? "entry" : "entries"} this month`, incomeColor, incomeTint);
+  statCard(16 + cardW + cardGap, cardY, cardW, cardH, "Expenses paid", money(summary.expense, true), `${expenseCount} ${expenseCount === 1 ? "entry" : "entries"} this month`, expenseColor, expenseTint);
+  statCard(16 + (cardW + cardGap) * 2, cardY, cardW, cardH, "Net this month", money(summary.net, true), summary.net >= 0 ? "Income minus expenses" : "Expenses exceed income", netColor, netTint);
+
+  const balLabel = udhar || accountReport ? "recorded cash" : "income/expense balance";
+  const balY = cardY + cardH + 8;
+  statStrip(16, balY, 178, [{ label: `Opening ${balLabel}`, value: money(summary.opening, true) }, { label: `Closing ${balLabel}`, value: money(summary.closing, true) }], neutralColor, neutralTint);
+  let y = balY + 18 + 8;
   if (accountPeriod) {
-    table({ startY: y - 5, head: [["Starting balances introduced this month", "Recorded account movement net", "Closing recorded cash"]], body: [[money(accountPeriod.startingAdjustments, true), money(accountPeriod.movementNet, true), money(accountPeriod.closing, true)]], theme: "grid", headStyles: { fillColor: green }, styles: { fontSize: 9 }, margin: { left: 16, right: 16, bottom: 20 } });
-    y = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 14;
-    doc.setFontSize(8); write("Starting balances introduce existing cash once. Transfers are not income or expenses.", 16, y - 5); y += 8;
+    statStrip(16, y, 178, [{ label: "Starting balances introduced", value: money(accountPeriod.startingAdjustments, true) }, { label: "Account movement, net", value: money(accountPeriod.movementNet, true) }, { label: "Closing recorded cash", value: money(accountPeriod.closing, true) }], neutralColor, neutralTint);
+    y += 18 + 5;
+    doc.setFontSize(7.8); doc.setTextColor(145, 155, 143); write("Starting balances introduce existing cash once. Transfers are not income or expenses.", 16, y); doc.setTextColor(40, 50, 46);
+    y += 9;
   }
   if (udhar) {
     const cash = cashSummary(entries, udhar.loans, udhar.payments, month);
-    table({ startY: y - 5, head: [["Udhar cash received", "Udhar cash paid", "Total cash change this month"]], body: [[money(cash.loanIn, true), money(cash.loanOut, true), money(cash.cashNet, true)]], theme: "grid", headStyles: { fillColor: green }, styles: { fontSize: 9 }, margin: { left: 16, right: 16, bottom: 20 } });
-    y = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 14;
+    statStrip(16, y, 178, [{ label: "Udhar cash received", value: money(cash.loanIn, true) }, { label: "Udhar cash paid", value: money(cash.loanOut, true) }, { label: "Total cash change", value: money(cash.cashNet, true) }], neutralColor, neutralTint);
+    y += 18 + 10;
   }
   for (const type of ["expense", "income"] as const) {
     if (y > 245) { doc.addPage(); y = 22; }
     doc.setFontSize(13);
-    write(type === "expense" ? "Spending by category" : "Income by category", 16, y);
+    write(type === "expense" ? "Spending by category" : "Income by category", 16, y, {}, true);
     const totals = categoryTotals(summary.cashRows, type);
-    table({ startY: y + 5, head: [["Category", "Amount (PKR)"]], body: totals.length ? totals.map(c => [c.name, money(c.amount, true)]) : [["No entries", money(0, true)]], headStyles: { fillColor: green }, styles: { fontSize: 9 }, columnStyles: { 1: { halign: "right" } }, margin: { left: 16, right: 16, bottom: 20 } });
+    const amountColor = type === "expense" ? expenseColor : incomeColor;
+    table({ startY: y + 5, head: [["Category", "Amount (PKR)"]], body: totals.length ? totals.map(c => [c.name, money(c.amount, true)]) : [["No entries", money(0, true)]], headStyles: { fillColor: green }, styles: { fontSize: 9 }, columnStyles: { 1: { halign: "right", textColor: amountColor, fontStyle: "bold" } }, margin: { left: 16, right: 16, bottom: 20 } });
     y = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 14;
   }
   doc.addPage();
@@ -127,7 +178,7 @@ export function createMonthlyPdf(entries: Transaction[], month: string, owner: s
       return [dateLabel(e.date), `${e.description}${e.notes ? `\n${e.notes}` : ""}`, `${e.category}\n${e.method}`, e.incoming ? money(e.amount, true) : "-", !e.incoming ? money(e.amount, true) : "-", money(balance, true)];
     }) : [[{ content: "No transactions recorded for this month.", colSpan: 6, styles: { halign: "center" } }]],
     headStyles: { fillColor: green }, styles: { fontSize: 8, cellPadding: 3, overflow: "linebreak" },
-    columnStyles: { 0: { cellWidth: 23 }, 1: { cellWidth: 42 }, 2: { cellWidth: 34 }, 3: { halign: "right" }, 4: { halign: "right" }, 5: { halign: "right" } },
+    columnStyles: { 0: { cellWidth: 23 }, 1: { cellWidth: 42 }, 2: { cellWidth: 34 }, 3: { halign: "right", textColor: incomeColor }, 4: { halign: "right", textColor: expenseColor }, 5: { halign: "right", fontStyle: "bold" } },
     margin: { left: 16, right: 16, bottom: 20 },
   });
   if (accountReport) {
