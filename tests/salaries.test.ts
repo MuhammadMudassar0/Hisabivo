@@ -1,0 +1,13 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {netSalary,payrollRows,payrollSummary,salaryDateInMonth,salarySchedule,validateEmployee,type EmployeeInput,type Employee} from '../lib/salaries';
+import {normalizeEntry,type Transaction} from '../lib/ledger';import type {Schedule,Occurrence} from '../lib/planning';
+const input:EmployeeInput={name:'Ali',role:'Assistant',base_paisa:6000000,allowance_paisa:500000,deduction_paisa:100000,joining_date:'2026-01-01',first_pay_date:'2026-01-31',payment_method:'Cash',notes:'Manual adjustment'};
+const schedule:Schedule={...salarySchedule(input),id:'schedule',created_at:'2026-01-01'};
+const employee:Employee={...input,id:'employee',schedule_id:schedule.id,archived_at:null,created_at:'2026-01-01'};
+test('employee salary validates exact net pay and rejects invalid deductions and joining dates',()=>{assert.equal(netSalary(input),6400000);validateEmployee(input);assert.throws(()=>validateEmployee({...input,deduction_paisa:6500000}));assert.throws(()=>validateEmployee({...input,allowance_paisa:0.5}));assert.throws(()=>validateEmployee({...input,joining_date:'2026-02-01'}));assert.equal(schedule.category,'Payroll');});
+test('monthly salary dates preserve the anchor and honor the first salary date',()=>{assert.equal(salaryDateInMonth(schedule,'2026-02'),'2026-02-28');assert.equal(salaryDateInMonth(schedule,'2026-03'),'2026-03-31');assert.equal(salaryDateInMonth(schedule,'2025-12'),null);assert.equal(salaryDateInMonth({...schedule,end_date:'2026-02-28'},'2026-03'),null);});
+test('salary-period totals keep installments separate from bill amounts and retain archived employee history',()=>{
+ const bill:Transaction=normalizeEntry({id:'bill',type:'expense',description:'Salary — Ali',category:'Payroll',amount_paisa:6400000,date:'2026-02-28',created_at:'2026-02-01',payment_method:'Cash',notes:'Old salary snapshot',expense_status:'partial',payment_tracking:true,payments:[{id:'payment',expense_id:'bill',amount_paisa:1000000,date:'2026-03-01',payment_method:'Cash',notes:'Installment',created_at:'2026-03-01'}]});
+ const occurrence:Occurrence={...schedule,id:'occurrence',schedule_id:'schedule',scheduled_date:'2026-02-28',status:'created',transaction_id:'bill'};
+ const rows=payrollRows([{...employee,archived_at:'2026-03-02',base_paisa:9000000}],[occurrence],[bill],'2026-02');assert.equal(rows.length,1);assert.deepEqual(payrollSummary(rows),{total:6400000,paid:1000000,remaining:5400000,count:1,settled:0});assert.equal(payrollRows([employee],[occurrence],[bill],'2026-03').length,0);assert.equal(payrollSummary(payrollRows([employee],[{...occurrence,transaction_id:null}],[],'2026-02')).total,0);
+});

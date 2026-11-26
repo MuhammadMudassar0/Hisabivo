@@ -1,0 +1,100 @@
+HISABIVO: COMPETITIVE REVIEW AND PRODUCT PRIORITIES
+Reviewed 25 November 2026
+
+Scope
+This is a review of published product pages and official help documentation,
+compared with the Hisabivo implementation. Competitor claims were not verified
+inside authenticated accounts. An unmentioned feature is not proof of absence.
+Recommendations below are product hypotheses to validate with users, not claims
+that no competitor provides them.
+
+WHAT COMPETITORS ALREADY COVER
+
+DigiKhata (Pakistan)
+Its official features page describes customer/supplier ledgers, a cash book,
+collection reminders, PDF sharing, bill attachments, invoicing, multiple languages,
+and app locking. Urdu/local language support, Udhar, and PDFs alone are therefore
+weak positioning for Hisabivo. Our gaps include receipt attachments, language
+support, and customer/supplier workflows.
+Source: https://www.digikhata.pk/features
+
+Udhaar Book (Pakistan)
+Its Staff Book advertises attendance, overtime, salary calculations, advances,
+carried dues, salary slips, and salary transfers. The site links a web version.
+Hisabivo's new employee salary register is a foundation, not equivalent payroll
+coverage. Attendance, managed salary advances, employee statements, and immutable
+period-specific payslip breakdowns are follow-up gaps in our product.
+Source: https://udhaar.pk/staff-book/
+
+Wallet by BudgetBakers (international)
+Its product pages cover budgeting, bank sync, planned payments, and forecasting.
+Those categories are established. Its official Planned Payments help page says
+creation is unavailable in the web app, missing calendar dates such as the 31st
+are skipped, and multi-device offline generation may duplicate records. These
+are documented limitations of that workflow, not of every competing product.
+Hisabivo already supports web recurrence, last-day clamping, and server-side
+occurrence uniqueness. We should demonstrate and regression-test those specific
+behaviors. Hisabivo currently requires connectivity for signed-in data; it does
+not yet offer conflict-safe offline synchronization or bank matching.
+Sources:
+https://budgetbakers.com/en/products/wallet/features/planned-payments/
+https://support.budgetbakers.com/hc/en-us/articles/7149523920786-Setup-Planned-Payments
+
+Zoho Expense (international business)
+Its documentation covers receipt scanning, categorization, and approval and
+reimbursement workflows. Receipt automation is an established capability. Our
+gaps include receipt capture, team approvals, reimbursement tracking, and audit
+history. We should not market a private individual ledger as enterprise-ready.
+Sources:
+https://www.zoho.com/us/expense/help/expenses/autoscan-receipts/
+https://www.zoho.com/us/expense/expense-faqs/
+
+RECOMMENDED POSITIONING
+
+A clear PKR cash-flow workspace for a Pakistani small-business owner: today's
+recorded money, upcoming bills and salaries, expected client receipts, and Udhar
+given or taken, with every partial payment traceable.
+
+This is a focused positioning hypothesis. Forecasting, staff management, and
+credit ledgers each exist elsewhere. The opportunity is to make their combined
+workflow easier to understand and consistently available on the web and phone.
+Validate that benefit before making superiority claims.
+
+NEXT PRODUCT PRIORITIES
+
+1. Accounts and transfers, then a transparent cash forecast.
+   Add opening balances for cash/bank/Easypaisa/JazzCash. Transfers must not count
+   as income or expenses. Show recorded cash, committed payments, and expected
+   receipts separately for 7/30/90 days. Example: cash 25,000 minus obligations
+   30,000 = a 5,000 gap before any unreceived income. This is planning from entered
+   records, not a verified bank balance or a promise of funds.
+
+2. Complete the staff-pay workflow.
+   Add salary advances that can be applied once, period-specific pay breakdowns,
+   printable employee statements, and optional attendance/overtime. Preserve old
+   periods when rates change and keep every payment linked to exactly one bill.
+   Manual deductions must remain clearly distinct from statutory payroll.
+
+3. Help users bring and trust their records.
+   CSV import/export, import previews and duplicate review, receipt attachments,
+   recoverable deletion, an edit audit trail, and a tested backup/restore process.
+
+4. Reduce daily entry work in local language.
+   Start with Urdu interface/PDF support and quick reusable entries. Evaluate
+   Roman Urdu or voice entry using examples such as "Ali ko 5 hazar advance".
+   Always show the parsed person, amount, type, and date for confirmation before
+   saving. AI is deferred; deterministic templates can provide value first.
+
+5. Add controlled collaboration when targeting teams.
+   Separate personal/business workspaces, owner/accountant/staff permissions,
+   approvals, and scoped exports. Current private user accounts are not shared
+   organizations. Keep reminder recipients and channels under explicit control.
+
+VALIDATION BEFORE THE NEXT LARGE BUILD
+
+Use task walkthroughs with small-business owners, freelancers, and bookkeepers.
+Ask them to record a partial supplier payment, pay part of a salary, collect
+Udhar, and find obligations due before their next client receipt. Measure task
+completion, entry time, misunderstandings about expected versus actual cash,
+and repeat use. Validate willingness to pay for the workflow rather than for
+the size of the feature list. No interviews have been conducted for this review.

@@ -1,0 +1,4 @@
+import {createDemoId} from './ledger';
+export function recordDemoChange(kind:string,id:string,action:string,before:unknown,after:unknown){
+ try{const key='hisabivo.demo.audit.v1';const rows=JSON.parse(localStorage.getItem(key)||'[]');rows.unshift({id:createDemoId(),entity_type:kind,entity_id:id,action,before_data:before,after_data:after,actor_id:'demo',created_at:new Date().toISOString()});localStorage.setItem(key,JSON.stringify(rows.slice(0,200)));if(action==='deleted'&&before){const trashKey='hisabivo.demo.trash.v1';const trash=JSON.parse(localStorage.getItem(trashKey)||'[]').filter((r:{id:string;kind:string})=>r.id!==id||r.kind!==kind);trash.unshift({kind,id,deleted_at:new Date().toISOString(),data:before});localStorage.setItem(trashKey,JSON.stringify(trash));}}catch{/* A storage warning elsewhere keeps demo writes explicitly temporary. */}
+}

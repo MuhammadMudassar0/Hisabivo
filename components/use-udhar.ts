@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import {recordDemoChange} from "@/lib/demo-recovery";
 import { createDemoId } from "@/lib/ledger";
 import { loanPaid, validateLoan, validatePayment, type UdharInput, type UdharLoan, type UdharPayment, type UdharPaymentInput } from "@/lib/udhar";
 import { deleteUdharLoan, deleteUdharPayment, fetchUdhar, saveUdharLoan, saveUdharPayment } from "@/lib/udhar-store";
@@ -10,7 +11,7 @@ function message(error: unknown) {
   return error && typeof error === "object" && "message" in error ? String(error.message) : "Your Udhar records could not be loaded. Please try again.";
 }
 
-export function useUdhar(userId: string, demo: boolean, onNotice: (text: string) => void) {
+export function useUdhar(userId: string, demo: boolean, onNotice: (text: string) => void, readOnly=false) {
   const [loans, setLoans] = useState<UdharLoan[]>([]);
   const [payments, setPayments] = useState<UdharPayment[]>([]);
   const [ready, setReady] = useState(false);
@@ -58,6 +59,7 @@ export function useUdhar(userId: string, demo: boolean, onNotice: (text: string)
   }, [loans, payments, demo, ready, storageWarning]);
 
   async function mutate(action: () => Promise<void>) {
+    if(readOnly)throw new Error("This workspace is read-only.");
     if (!ready) throw new Error("Wait for your Udhar records to load, or complete the Udhar database setup.");
     if (mutationLock.current) throw new Error("A record is being saved. Please wait a moment.");
     mutationLock.current = true; setBusy(true);
@@ -76,6 +78,7 @@ export function useUdhar(userId: string, demo: boolean, onNotice: (text: string)
     }
     await mutate(async () => {
       const saved = demo ? { ...input, id: id || createDemoId(), created_at: previous?.created_at || new Date().toISOString() } : await saveUdharLoan(userId, input, id);
+      if(demo)recordDemoChange('ledger_loans',saved.id,id?'updated':'created',previous||null,saved);
       setLoans(rows => id ? rows.map(loan => loan.id === id ? saved : loan) : [...rows, saved]);
       onNotice(id ? "Udhar details updated." : input.direction === "given" ? "Udhar given recorded." : "Udhar taken recorded.");
     });
@@ -83,6 +86,7 @@ export function useUdhar(userId: string, demo: boolean, onNotice: (text: string)
   async function removeLoan(id: string) {
     await mutate(async () => {
       if (!demo) await deleteUdharLoan(userId, id);
+      else {const row=loans.find(l=>l.id===id);if(row)recordDemoChange('ledger_loans',id,'deleted',row,null);for(const payment of payments.filter(p=>p.loan_id===id))recordDemoChange('ledger_loan_payments',payment.id,'deleted',payment,null);}
       setLoans(rows => rows.filter(loan => loan.id !== id));
       setPayments(rows => rows.filter(payment => payment.loan_id !== id));
       onNotice("Udhar record and its repayment history deleted.");
@@ -94,6 +98,7 @@ export function useUdhar(userId: string, demo: boolean, onNotice: (text: string)
     validatePayment(input, loan, payments);
     await mutate(async () => {
       const saved = demo ? { ...input, id: createDemoId(), created_at: new Date().toISOString() } : await saveUdharPayment(userId, input);
+      if(demo)recordDemoChange('ledger_loan_payments',saved.id,'created',null,saved);
       setPayments(rows => [...rows, saved]);
       onNotice(loan.direction === "given" ? "Money received recorded." : "Repayment recorded.");
     });
@@ -101,6 +106,7 @@ export function useUdhar(userId: string, demo: boolean, onNotice: (text: string)
   async function removePayment(id: string) {
     await mutate(async () => {
       if (!demo) await deleteUdharPayment(userId, id);
+      else {const row=payments.find(p=>p.id===id);if(row)recordDemoChange('ledger_loan_payments',id,'deleted',row,null);}
       setPayments(rows => rows.filter(payment => payment.id !== id));
       onNotice("Repayment removed. The outstanding amount has been updated.");
     });

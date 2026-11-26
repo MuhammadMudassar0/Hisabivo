@@ -1,11 +1,11 @@
 import { monthSummary, paymentMethods, today, validDate, type PaymentMethod, type Transaction } from "./ledger";
 
 export type UdharLoan = {
-  id: string; user_id?: string; direction: "given" | "taken"; person: string; amount_paisa: number;
+  id: string; account_id?:string|null; deleted_at?:string|null; user_id?: string; direction: "given" | "taken"; person: string; amount_paisa: number;
   date: string; due_date: string | null; payment_method: PaymentMethod; notes: string; created_at: string;
 };
 export type UdharPayment = {
-  id: string; user_id?: string; loan_id: string; amount_paisa: number; date: string;
+  id: string; account_id?:string|null; deleted_at?:string|null; user_id?: string; loan_id: string; amount_paisa: number; date: string;
   payment_method: PaymentMethod; notes: string; created_at: string;
 };
 export type UdharInput = Omit<UdharLoan, "id" | "user_id" | "created_at">;

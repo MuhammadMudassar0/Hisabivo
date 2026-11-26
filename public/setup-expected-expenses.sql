@@ -5,6 +5,10 @@ alter table public.ledger_transactions add column if not exists paid_date date;
 update public.ledger_transactions set paid_date = date where type = 'expense' and expense_status = 'paid' and paid_date is null;
 update public.ledger_transactions set paid_date = null where type = 'income';
 
+-- Preserve the newer partial-payment normalizer and constraints on existing installations.
+do $upgrade$ begin
+ if not exists(select 1 from information_schema.columns where table_schema='public' and table_name='ledger_transactions' and column_name='payment_tracking') then
+  execute $legacy$
 alter table public.ledger_transactions drop constraint if exists ledger_expense_status_valid;
 alter table public.ledger_transactions add constraint ledger_expense_status_valid check (expense_status in ('paid', 'expected'));
 alter table public.ledger_transactions drop constraint if exists ledger_expense_payment_metadata;
@@ -38,6 +42,10 @@ grant execute on function public.ledger_normalize_expense_payment() to authentic
 drop trigger if exists ledger_expense_payment_normalization on public.ledger_transactions;
 create trigger ledger_expense_payment_normalization before insert or update on public.ledger_transactions
   for each row execute function public.ledger_normalize_expense_payment();
+
+$legacy$;
+ end if;
+end $upgrade$;
 
 create index if not exists ledger_transactions_owner_paid_date on public.ledger_transactions(user_id, paid_date);
 create index if not exists ledger_transactions_owner_expected_date on public.ledger_transactions(user_id, date) where expense_status = 'expected';

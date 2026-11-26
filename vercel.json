@@ -11,7 +11,7 @@
       ]
     },
     {
-      "source": "/:path(dashboard|onboarding|login|signup|reset-password)(.*)",
+      "source": "/:path(dashboard|salaries|onboarding|login|signup|reset-password)(.*)",
       "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
     }
   ]

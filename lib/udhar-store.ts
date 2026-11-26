@@ -8,7 +8,7 @@ async function allRows<T>(table: "ledger_loans" | "ledger_loan_payments", userId
     if (loanId) query = query.eq("loan_id", loanId);
     const { data, error } = await query.order("id").range(offset, offset + 999);
     if (error) throw error;
-    rows.push(...data as T[]);
+    rows.push(...(data as T[]).filter(row=>!(row as {deleted_at?:string|null}).deleted_at));
     if (data.length < 1000) return rows;
   }
 }
@@ -18,14 +18,14 @@ export async function fetchUdhar(userId: string): Promise<{ loans: UdharLoan[]; 
 }
 export async function saveUdharLoan(userId: string, input: UdharInput, id?: string): Promise<UdharLoan> {
   validateLoan(input);
-  const values: UdharInput = { direction: input.direction, person: input.person.trim(), amount_paisa: input.amount_paisa, date: input.date, due_date: input.due_date, payment_method: input.payment_method, notes: input.notes.trim() };
+  const values: UdharInput = { direction: input.direction, person: input.person.trim(), amount_paisa: input.amount_paisa, account_id:input.account_id||null,date: input.date, due_date: input.due_date, payment_method: input.payment_method, notes: input.notes.trim() };
   const query = id ? supabase().from("ledger_loans").update(values).eq("id", id).eq("user_id", userId) : supabase().from("ledger_loans").insert({ ...values, user_id: userId });
   const { data, error } = await query.select().single();
   if (error) throw error;
   return data as UdharLoan;
 }
 export async function deleteUdharLoan(userId: string, id: string) {
-  const { data, error } = await supabase().from("ledger_loans").delete().eq("id", id).eq("user_id", userId).select("id").single();
+  const { data, error } = await supabase().from("ledger_loans").update({deleted_at:new Date().toISOString()}).eq("id", id).eq("user_id", userId).select("id").single();
   if (error || !data) throw error || new Error("This loan could not be deleted. Refresh and try again.");
 }
 export async function saveUdharPayment(userId: string, input: UdharPaymentInput): Promise<UdharPayment> {
@@ -36,11 +36,11 @@ export async function saveUdharPayment(userId: string, input: UdharPaymentInput)
   if (loanError) throw loanError;
   validatePayment(input, loan as UdharLoan, payments as UdharPayment[]);
   // The database repeats this check while locking the parent loan, including concurrent requests.
-  const { data, error } = await supabase().from("ledger_loan_payments").insert({ user_id: userId, loan_id: input.loan_id, amount_paisa: input.amount_paisa, date: input.date, payment_method: input.payment_method, notes: input.notes.trim() }).select().single();
+  const { data, error } = await supabase().from("ledger_loan_payments").insert({ user_id: userId, account_id:input.account_id||null, loan_id: input.loan_id, amount_paisa: input.amount_paisa, date: input.date, payment_method: input.payment_method, notes: input.notes.trim() }).select().single();
   if (error) throw error;
   return data as UdharPayment;
 }
 export async function deleteUdharPayment(userId: string, id: string) {
-  const { data, error } = await supabase().from("ledger_loan_payments").delete().eq("id", id).eq("user_id", userId).select("id").single();
+  const { data, error } = await supabase().from("ledger_loan_payments").update({deleted_at:new Date().toISOString()}).eq("id", id).eq("user_id", userId).select("id").single();
   if (error || !data) throw error || new Error("This repayment could not be deleted. Refresh and try again.");
 }

@@ -2,9 +2,11 @@ import { parsePkrAmount } from "./amount";
 
 export type EntryType = "income" | "expense";
 export type PaymentMethod = "Cash" | "Bank transfer" | "Debit / credit card" | "Easypaisa" | "JazzCash";
-export type ExpensePayment = { id: string; user_id?: string; expense_id: string; amount_paisa: number; date: string; payment_method: PaymentMethod; notes: string; created_at: string };
+export type ExpensePayment = { account_id?:string|null; advance_id?:string|null; id: string; user_id?: string; expense_id: string; amount_paisa: number; date: string; payment_method: PaymentMethod; notes: string; created_at: string };
 export type Transaction = {
   id: string;
+  account_id?:string|null;
+  deleted_at?:string|null;
   user_id?: string;
   type: EntryType;
   amount_paisa: number;
@@ -20,7 +22,7 @@ export type Transaction = {
   paid_date?: string | null;
 };
 export type Category = { id: string; name: string; type: EntryType; custom?: boolean };
-export type EntryInput = Omit<Transaction, "id" | "user_id" | "created_at">;
+export type EntryInput = Omit<Transaction, "id" | "user_id" | "created_at" | "deleted_at">;
 
 export const paymentMethods: PaymentMethod[] = ["Cash", "Bank transfer", "Debit / credit card", "Easypaisa", "JazzCash"];
 const expenses = ["Groceries", "Food & dining", "Fuel", "Bike maintenance", "Child expenses", "Medicine", "Healthcare", "Personal care", "Rent", "Electricity", "Gas", "Water", "Internet & mobile", "Education", "Transport", "Clothing", "Household", "Family support", "Entertainment", "Subscriptions", "Gifts & charity", "Travel", "Advertising", "Software & tools", "Payroll", "Office supplies", "Inventory", "Business travel", "Professional services", "Other expense"];
@@ -80,7 +82,7 @@ export function expensePaid(entry: EntryInput, asOf = "9999-12-31") {
 }
 export function expenseRemaining(entry: EntryInput, asOf = "9999-12-31") { return Math.max(0, entry.amount_paisa - expensePaid(entry,asOf)); }
 export function expenseCashRows(entries: Transaction[]): Transaction[] {
-  return entries.flatMap(entry => entry.type === "expense" && entry.payment_tracking ? (entry.payments || []).map(p => ({ ...entry, id: `${entry.id}:${p.id}`, amount_paisa:p.amount_paisa, date:p.date, paid_date:p.date, payment_method:p.payment_method, notes:p.notes || entry.notes, created_at:p.created_at, expense_status:"paid" as const, payment_tracking:false, payments:[] })) : isExpectedExpense(entry) ? [] : [entry]);
+  return entries.flatMap(entry => entry.type === "expense" && entry.payment_tracking ? (entry.payments || []).filter(p=>!p.advance_id).map(p => ({ ...entry, id: `${entry.id}:${p.id}`, amount_paisa:p.amount_paisa, date:p.date, paid_date:p.date, payment_method:p.payment_method, account_id:p.account_id||null, notes:p.notes || entry.notes, created_at:p.created_at, expense_status:"paid" as const, payment_tracking:false, payments:[] })) : isExpectedExpense(entry) ? [] : [entry]);
 }
 export function isCashEntry(entry: EntryInput) { return !isExpectedExpense(entry) && !entry.payment_tracking; }
 export function transactionDate(entry: EntryInput) {

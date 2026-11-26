@@ -6,9 +6,13 @@ const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 export const isConnected = Boolean(url && key && !url.includes("your-project"));
 let client: SupabaseClient | undefined;
+let selectedWorkspaceId:string|null=null;
+export function setActiveWorkspace(id:string|null){selectedWorkspaceId=id;}
+export function getActiveWorkspace(){return selectedWorkspaceId;}
+async function scopedFetch(input:RequestInfo|URL,init?:RequestInit){const headers=new Headers(init?.headers||(input instanceof Request?input.headers:undefined));if(selectedWorkspaceId)headers.set("x-hisabivo-workspace",selectedWorkspaceId);else headers.delete("x-hisabivo-workspace");return fetch(input,{...init,headers});}
 export function supabase() {
   if (!isConnected) throw new Error("Supabase has not been configured yet.");
-  if (!client) client = createClient(url!, key!);
+  if (!client) client = createClient(url!, key!,{global:{fetch:scopedFetch}});
   return client;
 }
 export async function fetchEntries(userId: string): Promise<Transaction[]> {
@@ -16,7 +20,7 @@ export async function fetchEntries(userId: string): Promise<Transaction[]> {
   for (let offset = 0; ; offset += 1000) {
     const { data, error } = await supabase().from("ledger_transactions").select("*").eq("user_id", userId).order("id").range(offset, offset + 999);
     if (error) throw error;
-    rows.push(...data as Transaction[]);
+    rows.push(...(data as Transaction[]).filter(row=>!row.deleted_at));
     if (data.length < 1000) break;
   }
   const payments = await fetchExpensePayments(userId);
@@ -72,7 +76,7 @@ export async function markExpensePaid(userId: string, id: string, paidDate: stri
   return data as Transaction;
 }
 export async function removeEntry(userId: string, id: string) {
-  const { data, error } = await supabase().from("ledger_transactions").delete().eq("id", id).eq("user_id", userId).select("id").single();
+  const { data, error } = await supabase().from("ledger_transactions").update({deleted_at:new Date().toISOString()}).eq("id", id).eq("user_id", userId).select("id").single();
   if (error || !data) throw error || new Error("Transaction could not be deleted. Refresh and try again.");
 }
 export async function addCategory(userId: string, name: string, type: "income" | "expense"): Promise<Category> {
@@ -89,9 +93,9 @@ export async function fetchExpensePayments(userId:string):Promise<ExpensePayment
   rows.push(...data as ExpensePayment[]); if(data.length<1000)return rows;
  }
 }
-export type ExpensePaymentInput = Pick<ExpensePayment,"amount_paisa"|"date"|"payment_method"|"notes">;
+export type ExpensePaymentInput = Pick<ExpensePayment,"amount_paisa"|"date"|"payment_method"|"notes"|"account_id">;
 export async function recordExpensePayment(userId:string,expenseId:string,input:ExpensePaymentInput,requestId:string):Promise<Transaction>{
- const {error}=await supabase().rpc("ledger_record_expense_payment",{p_expense:expenseId,p_amount:input.amount_paisa,p_date:input.date,p_method:input.payment_method,p_notes:input.notes,p_request:requestId});
+ const {error}=await supabase().rpc(input.account_id?"ledger_record_account_expense_payment":"ledger_record_expense_payment",{p_expense:expenseId,p_amount:input.amount_paisa,p_date:input.date,p_method:input.payment_method,p_notes:input.notes,p_request:requestId,...(input.account_id?{p_account:input.account_id}:{})});
  if(error) throw new Error(["PGRST202","PGRST205","42703"].includes(error.code)?"Run setup-planning.sql in the Supabase SQL Editor to enable installments and recurring entries.":error.message);
  return refreshExpense(userId,expenseId);
 }
