@@ -21,3 +21,26 @@
 .tl-footer>span{max-width:100%}
 @container transaction-list (max-width:1000px){.tl-scroll-toggle{display:none}}
 @media(max-width:700px){.tl-scroll-toggle{display:none}.tl-list .tl-mobile{max-height:none;overflow:visible;scrollbar-gutter:auto}.tl-scroll-hint{display:block}}
+
+/* Give installment amounts their own lines instead of inheriting the cell's nowrap. */
+.tl-amount-stack{display:flex;flex-direction:column;align-items:flex-end;gap:5px;min-width:0;max-width:100%;white-space:normal;letter-spacing:0;font-variant-numeric:tabular-nums}
+.tl-amount-caption{display:block;font-size:12px;font-weight:450;line-height:1.5;color:#74816c}
+.tl-amount-value{display:block;max-width:100%;font-size:15px;font-weight:650;line-height:1.5;color:inherit}
+.tl-amount-value bdi,.tl-payment-summary bdi{white-space:nowrap}
+.tl-payment-settled{display:inline-flex;align-items:center;gap:4px;max-width:100%;font-size:12px;line-height:1.5;font-weight:500;color:#347452}
+.tl-payment-settled svg{flex-shrink:0}
+.tl-payment-waiting{font-size:12px;line-height:1.5;font-weight:450;color:#977442}
+.tl-payment-summary{display:grid;gap:5px;margin:5px 0 0;max-width:100%;width:100%;font-size:12px;line-height:1.6;font-weight:450;color:#6f8067}
+.tl-payment-summary>div{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:flex-end;column-gap:10px;row-gap:2px;min-width:0}
+.tl-payment-summary dt{min-width:0;overflow-wrap:anywhere}
+.tl-payment-summary dd{margin:0;font-weight:550;color:#435d3c}
+.tl-payment-summary .tl-payment-remaining dt,.tl-payment-summary .tl-payment-remaining dd{color:#a16b43;font-weight:600}
+.tl-date-prefix{font-weight:500}
+.tl-actions button.tl-payment-history,.tl-mobile-bottom .tl-actions button.tl-payment-history{width:auto!important;min-width:0;padding-inline:10px!important;font-size:12px;color:#54734a}
+.tl-mobile-main>.tl-amount{min-width:0;max-width:100%;flex-shrink:1;flex-basis:230px}
+.tl-mobile .tl-amount-stack{gap:6px}
+.tl-mobile .tl-amount-value{font-size:22px;line-height:1.45}
+.tl-mobile .tl-amount-caption,.tl-mobile .tl-payment-settled,.tl-mobile .tl-payment-waiting{font-size:13px}
+.tl-mobile .tl-payment-summary{font-size:13px;max-width:310px}
+@container transaction-list (max-width:560px){.tl-mobile-main{flex-wrap:wrap;gap:10px}.tl-mobile-main>strong{flex-basis:100%}.tl-mobile-main>.tl-amount{flex:1 1 100%;margin-top:0}.tl-mobile .tl-amount-stack{align-items:flex-start}.tl-mobile .tl-payment-summary>div{justify-content:space-between}}
+@media(max-width:700px){.tl-mobile-main>.tl-amount{flex-basis:100%}.tl-mobile .tl-amount-stack{align-items:flex-start}.tl-mobile .tl-payment-summary>div{justify-content:space-between}}
