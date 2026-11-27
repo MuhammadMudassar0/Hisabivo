@@ -91,6 +91,8 @@ Udhar principal and repayments are **not income or expenses**, but do change rec
 
 Maintain Cash, Bank, Easypaisa, and JazzCash accounts, each with a starting balance and starting date. Enter a starting balance **once**; do not also enter it as income. Use a date that avoids overlapping the starting balance with historical movements already entered for that account.
 
+Overview and Accounts & transfers show **What you should have now**: cash in hand, banks, mobile wallets, and total recorded money through today in Pakistan. Starting balances, actual income, payments and Udhar determine the total; transfers conserve it. Archived balances remain included. Unassigned records stay separate and are included in the total. Cash in hand shows **Not set up** until you add a cash account. These figures use your entered records rather than live bank balances.
+
 Assign actual receipts, paid expenses/installments, Udhar, and repayments to their real account. A planned bill does not move account money. Transactions without an explicit assignment remain in Unassigned; the app does not guess an account from a payment-method label.
 
 An account transfer creates matching outgoing/incoming movements between two active accounts. It changes individual account balances, leaves total cash unchanged, and is not income or spending. Its request identity prevents duplicate transfers on retry. Account starting balances are included once in recorded cash and forecasts. Archived accounts keep their history.

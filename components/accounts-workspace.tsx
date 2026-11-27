@@ -2,12 +2,14 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { Archive, Banknote, ChevronDown, Landmark, LoaderCircle, Pencil, Plus, RefreshCw, Repeat2, Smartphone, Wallet } from "lucide-react";
 import { Button } from "./ui/button";
+import MoneyBalances from "./money-balances";
+import {usePakistanDate} from "./use-pakistan-date";
 import { Input } from "./ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "./ui/dialog";
 import { dateLabel, money, today } from "@/lib/ledger";
 import { parsePkrAmount } from "@/lib/amount";
 import { requestUuid } from "@/lib/ids";
-import { accountBalances, accountCashMovements, accountKinds, totalRecordedCash, UNASSIGNED_ACCOUNT, validateAccount, validateTransfer, type Account, type AccountInput, type AccountLoan, type AccountLoanPayment, type AccountTransaction, type AccountTransfer, type TransferInput } from "@/lib/accounts";
+import { accountBalances, accountCashMovements, accountKinds, UNASSIGNED_ACCOUNT, validateAccount, validateTransfer, type Account, type AccountInput, type AccountLoan, type AccountLoanPayment, type AccountTransaction, type AccountTransfer, type TransferInput } from "@/lib/accounts";
 import "@/app/accounts-workspace.css";
 
 type Props = { accounts: Account[]; transfers: AccountTransfer[]; entries: AccountTransaction[]; loans: AccountLoan[]; payments: AccountLoanPayment[]; loading: boolean; error: string; canWrite: boolean; onSave: (input: AccountInput, id?: string) => Promise<void>; onArchive: (account: Account, archived: boolean) => Promise<void>; onTransfer: (input: TransferInput, requestId: string) => Promise<void>; onRetry?: () => void };
@@ -18,8 +20,9 @@ const errorMessage = (error: unknown) => error && typeof error === "object" && "
 export default function AccountsWorkspace({ accounts, transfers, entries, loans, payments, loading, error, canWrite, onSave, onArchive, onTransfer, onRetry }: Props) {
   const [editor, setEditor] = useState<Account | "new" | null>(null), [transferOpen, setTransferOpen] = useState(false), [archiveTarget, setArchiveTarget] = useState<Account | null>(null);
   const [showArchived, setShowArchived] = useState(false), [busy, setBusy] = useState(false), [actionError, setActionError] = useState("");
+  const asOf=usePakistanDate();
   const movements = useMemo(() => accountCashMovements(entries, loans, payments, transfers), [entries, loans, payments, transfers]);
-  const balances = useMemo(() => accountBalances(accounts, movements), [accounts, movements]);
+  const balances = useMemo(() => accountBalances(accounts, movements,asOf), [accounts, movements,asOf]);
   const activeAccounts = accounts.filter(account => !account.archived);
   const visibleAccounts = accounts.filter(account => showArchived || !account.archived);
   const named = new Map(accounts.map(account => [account.id, account.name]));
@@ -30,7 +33,7 @@ export default function AccountsWorkspace({ accounts, transfers, entries, loans,
   }
   return <div className="accounts-workspace"><div className="ac-heading"><div><span className="ac-kicker">KNOW WHERE YOUR MONEY SITS</span><h2>Your accounts, in one place.</h2><p>Keep cash, bank balances and mobile wallets distinct. Transfers never count as income or expenses.</p></div><div><Button variant="outline" onClick={()=>setTransferOpen(true)} disabled={!canWrite || loading || activeAccounts.length < 2}><Repeat2 size={17} />Transfer money</Button><Button onClick={()=>setEditor("new")} disabled={!canWrite || loading}><Plus size={17} />Add account</Button></div></div>
     {error ? <div className="ac-error" role="alert"><h3>Your accounts couldn’t be opened.</h3><p>{error}</p><div>{onRetry && <Button variant="outline" onClick={onRetry}><RefreshCw size={16}/>Try again</Button>}<a href="/setup-accounts.sql" download>Download accounts setup</a></div></div> : loading ? <div className="ac-loading" role="status"><LoaderCircle className="animate-spin" size={25}/><p>Opening your account records…</p></div> : <>
-      <div className="ac-total"><span><Wallet size={20}/><span>Actual recorded cash<strong>{money(totalRecordedCash(accounts, movements), true)}</strong></span></span><p>Across all named accounts and Unassigned, including archived balances. Based on dated records through {dateLabel(today())}.</p></div>
+      <MoneyBalances accounts={accounts} entries={entries} loans={loans} payments={payments} transfers={transfers}/>
       <div className="ac-account-toolbar"><span>{activeAccounts.length} active {activeAccounts.length === 1 ? "account" : "accounts"}</span><label><input type="checkbox" checked={showArchived} onChange={event=>setShowArchived(event.target.checked)}/>Show archived accounts</label></div>
       <div className="ac-grid">{visibleAccounts.map(account=>{const Icon=icons[account.kind];return <section className={`ac-account-card${account.archived?" is-archived":""}`} key={account.id}><div className="ac-card-top"><span className={`ac-kind-icon ${account.kind}`}><Icon size={22}/></span><span>{names[account.kind]}{account.archived && <small>Archived</small>}</span><div><Button variant="ghost" size="icon" aria-label={`Edit ${account.name}`} disabled={!canWrite || busy} onClick={()=>setEditor(account)}><Pencil size={16}/></Button><Button variant="ghost" size="icon" aria-label={`${account.archived?"Reactivate":"Archive"} ${account.name}`} disabled={!canWrite || busy} onClick={()=>{setActionError("");account.archived?void archive(account,false):setArchiveTarget(account);}}><Archive size={16}/></Button></div></div><h3>{account.name}</h3><strong className="ac-account-balance">{money(balances.get(account.id)||0,true)}</strong><p>Starting balance {money(account.opening_balance_paisa)} · {dateLabel(account.opening_date)}</p></section>;})}
         <section className="ac-account-card ac-unassigned"><div className="ac-card-top"><span className="ac-kind-icon"><Wallet size={22}/></span><span>Unassigned</span></div><h3>Records without an account</h3><strong className="ac-account-balance">{money(balances.get(UNASSIGNED_ACCOUNT)||0,true)}</strong><p>Older records stay here until you explicitly choose an account. A payment method never assigns an account automatically.</p></section>

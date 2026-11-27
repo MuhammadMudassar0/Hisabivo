@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { accountBalances, accountCashMovements, accountPeriodSummary, sameTransfer, totalRecordedCash, UNASSIGNED_ACCOUNT, validateAccount, validateTransfer, type Account, type AccountLoan, type AccountLoanPayment, type AccountTransaction, type AccountTransfer } from "../lib/accounts";
+import { accountBalances, accountBalanceSummary, accountCashMovements, accountPeriodSummary, sameTransfer, totalRecordedCash, UNASSIGNED_ACCOUNT, validateAccount, validateTransfer, type Account, type AccountLoan, type AccountLoanPayment, type AccountTransaction, type AccountTransfer } from "../lib/accounts";
 import { buildCashForecast } from "../lib/forecast";
 import type { Occurrence, Schedule } from "../lib/planning";
 
@@ -93,4 +93,33 @@ test("forecasts preserve total cash across transfers and never mutate the input"
  const entries=[entry("cash","income",30000)];const before=JSON.stringify(entries);
  const a=buildCashForecast({...forecastBase,accounts:[cash,bank],entries,transfers:[transfer]});const b=buildCashForecast({...forecastBase,accounts:[cash,bank],entries});assert.equal(a.currentPaisa,b.currentPaisa);assert.equal(a.endingPaisa,b.endingPaisa);assert.equal(JSON.stringify(entries),before);
  assert.throws(()=>buildCashForecast({...forecastBase,asOf:"2026-02-30"}));
+});
+
+
+test("money summary separates cash, banks, wallets and unassigned while including actual Udhar",()=>{
+ const wallet={...cash,id:"wallet",name:"Easypaisa",kind:"easypaisa" as const,opening_balance_paisa:200000};
+ const move={...transfer,from_account_id:"bank",to_account_id:"cash",amount_paisa:50000};
+ const records=[entry("salary","income",100000,"2026-11-27","bank"),entry("paid","expense",20000,"2026-11-27","cash"),entry("unassigned-income","income",9000),entry("unassigned-expense","expense",1000),{...entry("planned","expense",999999,"2026-11-27","cash"),expense_status:"expected" as const},entry("future-income","income",999999,"2026-12-01","bank")];
+ const debts=[loan("lent","given",30000,"2026-11-01","cash")];
+ const repayments:AccountLoanPayment[]=[{id:"returned",loan_id:"lent",amount_paisa:10000,date:"2026-11-27",account_id:"bank",payment_method:"Cash",notes:"",created_at:"2026-11-27T12:00:00Z"}];
+ const moves=accountCashMovements(records,debts,repayments,[move]);
+ const result=accountBalanceSummary([cash,bank,wallet],moves,"2026-11-27");
+ assert.deepEqual([result.cash,result.bank,result.wallets,result.unassigned,result.total],[100000,560000,200000,8000,868000]);
+ assert.equal(result.total,totalRecordedCash([cash,bank,wallet],moves,"2026-11-27"));
+ assert.deepEqual([result.cashAccounts,result.bankAccounts,result.walletAccounts,result.unassignedCount],[1,1,1,2]);
+});
+test("money summary retains archived overdrafts and never assumes unassigned money is cash",()=>{
+ const overdraft={...bank,opening_balance_paisa:-50000,archived:true};
+ const movements=accountCashMovements([entry("same-in","income",10000),entry("same-out","expense",10000)]);
+ const result=accountBalanceSummary([overdraft],movements,"2026-11-27");
+ assert.equal(result.cashAccounts,0);assert.equal(result.cash,0);assert.equal(result.bank,-50000);assert.equal(result.total,-50000);assert.equal(result.archivedAccounts,1);assert.equal(result.unassigned,0);assert.equal(result.unassignedCount,2);
+ assert.equal(accountBalanceSummary([],accountCashMovements([entry("legacy","income",70000)]),"2026-11-27").total,70000);
+});
+test("money summary keeps future starting snapshots and salary advance credits out of current money",()=>{
+ const bill={...entry("salary-balance","expense",30000),payment_tracking:true,payments:[installment("installment",10000,null),{...installment("advance-credit",10000,null),advance_id:"issued"}]};
+ const future={...bank,opening_date:"2026-12-01",opening_balance_paisa:500000};
+ const movements=accountCashMovements([entry("income","income",100000),entry("advance-issued","expense",10000),bill]);
+ const result=accountBalanceSummary([future],movements,"2026-11-27");
+ assert.equal(result.bankAccounts,0);assert.equal(result.bank,0);assert.equal(result.total,80000);
+ assert.equal(accountBalanceSummary([future],movements,"2026-12-01").total,580000);
 });

@@ -89,3 +89,17 @@ export function accountPeriodSummary(accounts: Account[], movements: CashMovemen
   const movementNet = inPeriod.reduce((sum, movement) => sum + movement.signed_paisa, 0);
   return { opening: opening + before, startingAdjustments, movementNet, closing: opening + before + startingAdjustments + movementNet };
 }
+
+/** Current money by location. Archived balances remain part of the same total. */
+export function accountBalanceSummary(accounts:Account[],movements:CashMovement[],asOf=today()){
+  const balances=accountBalances(accounts,movements,asOf);
+  const started=accounts.filter(account=>account.opening_date<=asOf);
+  const kinds={cash:0,bank:0,easypaisa:0,jazzcash:0};
+  for(const account of started)kinds[account.kind]+=balances.get(account.id)||0;
+  const knownIds=new Set(accounts.map(account=>account.id));
+  const unassignedCount=movements.filter(movement=>movement.date<=asOf&&(!movement.account_id||!knownIds.has(movement.account_id))).length;
+  const unassigned=balances.get(UNASSIGNED_ACCOUNT)||0;
+  return{balances,cash:kinds.cash,bank:kinds.bank,wallets:kinds.easypaisa+kinds.jazzcash,unassigned,total:kinds.cash+kinds.bank+kinds.easypaisa+kinds.jazzcash+unassigned,
+    cashAccounts:started.filter(account=>account.kind==='cash').length,bankAccounts:started.filter(account=>account.kind==='bank').length,walletAccounts:started.filter(account=>account.kind==='easypaisa'||account.kind==='jazzcash').length,
+    archivedAccounts:started.filter(account=>account.archived).length,unassignedCount};
+}
